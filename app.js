@@ -16,6 +16,7 @@ const state = {
   categoryCards: null,
   categoryFeed: null,
   categoryObserver: null,
+  browseFeed: null,
   tvMode: null,
 };
 
@@ -192,14 +193,63 @@ async function renderBrowse(kind, requestId) {
     : await api(`/${kind}/popular`, { page: 1 });
   if (requestId !== state.requestId) return;
   const items = (data.results || []).filter((item) => typeOf(item) !== 'person');
+  const seen = new Set(items.map((item) => item.id));
+  if (!isTrending) {
+    state.browseFeed = {
+      kind,
+      requestId,
+      page: Number(data.page) || 1,
+      totalPages: Math.min(Number(data.total_pages) || 1, 500),
+      loading: false,
+      seen,
+    };
+  }
   app.innerHTML = `
     <section class="page">
       <div class="page-heading">
         <div><div class="eyebrow">Explore o catálogo</div><h1>${heading}</h1></div>
-        <span class="result-count">${items.length} títulos nesta seleção</span>
+        <span class="result-count" id="browse-count">${isTrending ? `${items.length} títulos nesta seleção` : `${items.length} títulos exibidos`}</span>
       </div>
-      <div class="media-grid">${items.map(mediaCard).join('')}</div>
+      <div class="media-grid" id="browse-grid">${items.map(mediaCard).join('')}</div>
+      ${isTrending ? '' : `<div class="browse-more-wrap" id="browse-more-wrap"><button class="button button-secondary browse-more" type="button" data-browse-more>Ver mais</button></div>`}
     </section>`;
+}
+
+async function loadMoreBrowse() {
+  const feed = state.browseFeed;
+  if (!feed || feed.loading || feed.requestId !== state.requestId || feed.page >= feed.totalPages) return;
+  const button = document.querySelector('[data-browse-more]');
+  if (!button) return;
+  feed.loading = true;
+  button.disabled = true;
+  button.textContent = 'Carregando...';
+  try {
+    const data = await api(`/${feed.kind}/popular`, { page: feed.page + 1 });
+    if (feed !== state.browseFeed || feed.requestId !== state.requestId) return;
+    feed.page = Number(data.page) || feed.page + 1;
+    feed.totalPages = Math.min(Number(data.total_pages) || feed.totalPages, 500);
+    const fresh = (data.results || []).filter((item) => {
+      if (feed.seen.has(item.id)) return false;
+      feed.seen.add(item.id);
+      return true;
+    });
+    document.querySelector('#browse-grid')?.insertAdjacentHTML('beforeend', fresh.map(mediaCard).join(''));
+    const count = document.querySelector('#browse-count');
+    if (count) count.textContent = `${feed.seen.size} títulos exibidos`;
+    if (feed.page >= feed.totalPages) {
+      document.querySelector('#browse-more-wrap').innerHTML = '<span class="browse-end">Todos os títulos disponibilizados pelo TMDB foram exibidos.</span>';
+    } else {
+      button.disabled = false;
+      button.textContent = 'Ver mais';
+    }
+  } catch (error) {
+    if (feed !== state.browseFeed) return;
+    button.disabled = false;
+    button.textContent = 'Tentar novamente';
+    button.title = error.message;
+  } finally {
+    if (feed === state.browseFeed) feed.loading = false;
+  }
 }
 
 function genreKey(name) {
@@ -609,6 +659,7 @@ async function route() {
   state.categoryObserver?.disconnect();
   state.categoryObserver = null;
   state.categoryFeed = null;
+  state.browseFeed = null;
   state.show = null;
   state.season = null;
   header.classList.remove('menu-open');
@@ -649,6 +700,9 @@ document.addEventListener('click', (event) => {
 
   const feedRetry = event.target.closest('[data-feed-retry]');
   if (feedRetry) loadCategoryPage();
+
+  const browseMore = event.target.closest('[data-browse-more]');
+  if (browseMore) loadMoreBrowse();
 
   const source = event.target.closest('[data-player-url]');
   if (source) setPlayer(source.dataset.playerUrl, source.dataset.source);
