@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080A0F">
+  <meta name="description" content="CHEFEFLIX: descubra filmes e séries com informações do TMDB.">
+  <title>CHEFEFLIX</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://image.tmdb.org">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header" id="site-header">
+    <a class="brand" href="#/" aria-label="CHEFEFLIX, início">
+      <span class="brand-mark" aria-hidden="true"><i></i><b></b></span>
+      <span>CHEFEFLIX</span>
+    </a>
+
+    <nav class="desktop-nav" aria-label="Navegação principal">
+      <a href="#/" data-nav="home">Início</a>
+      <a href="#/browse/movie" data-nav="movie">Filmes</a>
+      <a href="#/browse/tv" data-nav="tv">Séries</a>
+      <a href="#/categories" data-nav="categories">Categorias</a>
+      <a href="#/about" data-nav="about">Sobre</a>
+    </nav>
+
+    <form class="search-form" id="search-form" role="search">
+      <label class="sr-only" for="search-input">Buscar filmes e séries</label>
+      <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+      <input id="search-input" name="q" type="search" placeholder="Buscar títulos" autocomplete="off" minlength="2">
+    </form>
+
+    <button class="menu-button" id="menu-button" aria-label="Abrir menu" aria-expanded="false">
+      <span></span><span></span>
+    </button>
+
+    <div class="mobile-menu" id="mobile-menu">
+      <nav aria-label="Navegação móvel">
+        <a href="#/">Início</a>
+        <a href="#/browse/movie">Filmes</a>
+        <a href="#/browse/tv">Séries</a>
+        <a href="#/categories">Categorias</a>
+        <a href="#/about">Sobre</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="app" tabindex="-1">
+    <div class="page-loader" aria-label="Carregando">
+      <span class="loader-mark"><i></i><b></b></span>
+      <p>Preparando sua próxima história</p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <a class="brand brand-small" href="#/" aria-label="CHEFEFLIX, início">
+      <span class="brand-mark" aria-hidden="true"><i></i><b></b></span>
+      <span>CHEFEFLIX</span>
+    </a>
+    <p>Descubra. Escolha. Assista.</p>
+    <p class="footer-meta">Dados e imagens fornecidos pelo TMDB.</p>
+  </footer>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

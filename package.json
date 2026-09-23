@@ -1,0 +1,13 @@
+{
+  "name": "chefeflix",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Catálogo de filmes e séries com dados do TMDB",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
