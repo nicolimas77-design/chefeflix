@@ -16,6 +16,7 @@ const state = {
   categoryCards: null,
   categoryFeed: null,
   categoryObserver: null,
+  tvMode: null,
 };
 
 const icons = {
@@ -451,14 +452,17 @@ async function renderMovie(id, watch, requestId) {
   app.innerHTML = `
     ${detailHero(movie, 'movie')}
     <section class="watch-section" id="player">
+      <button class="tv-mode-exit" type="button" data-tv-exit>Sair do Modo TV</button>
+      <p class="tv-mode-tip">Espelhe a tela na TV e gire o aparelho para a horizontal</p>
       <div class="section-title"><div class="eyebrow">Sessão</div><h2>Assistir filme</h2><p>Escolha uma das fontes disponíveis para este título.</p></div>
       <div class="player-shell" data-player>
         ${playerFrame(tmdbUrl, titleOf(movie))}
         <div class="player-bar">
           <span class="player-status">Fonte selecionada: ID TMDB</span>
           <div class="source-buttons">
-            <button class="source-button active" data-player-url="${tmdbUrl}" data-source="ID TMDB">TMDB</button>
-            ${imdbId ? `<button class="source-button" data-player-url="${EMBED_ROOT}/filme/${escapeHtml(imdbId)}" data-source="ID IMDb">IMDb</button>` : ''}
+             <button class="source-button active" data-player-url="${tmdbUrl}" data-source="ID TMDB">TMDB</button>
+             ${imdbId ? `<button class="source-button" data-player-url="${EMBED_ROOT}/filme/${escapeHtml(imdbId)}" data-source="ID IMDb">IMDb</button>` : ''}
+             <button class="source-button tv-mode-button" type="button" data-tv-enter>Modo TV</button>
           </div>
         </div>
       </div>
@@ -499,6 +503,8 @@ async function renderShow(id, watch, requestId) {
   app.innerHTML = `
     ${detailHero(show, 'tv')}
     <section class="watch-section" id="player">
+      <button class="tv-mode-exit" type="button" data-tv-exit>Sair do Modo TV</button>
+      <p class="tv-mode-tip">Espelhe a tela na TV e gire o aparelho para a horizontal</p>
       <div class="section-title"><div class="eyebrow">Temporadas e episódios</div><h2>Escolha o que assistir</h2><p>Selecione um episódio para abrir diretamente ou use a lista do próprio player.</p></div>
       <div class="episodes-layout">
         <aside class="episode-panel">
@@ -513,7 +519,7 @@ async function renderShow(id, watch, requestId) {
             ${playerFrame(listUrl, titleOf(show))}
             <div class="player-bar">
               <span class="player-status">Lista de episódios do player</span>
-              <div class="source-buttons"><button class="source-button active" data-player-url="${listUrl}" data-source="Lista de episódios do player">Abrir lista do player</button></div>
+              <div class="source-buttons"><button class="source-button active" data-player-url="${listUrl}" data-source="Lista de episódios do player">Abrir lista do player</button><button class="source-button tv-mode-button" type="button" data-tv-enter>Modo TV</button></div>
             </div>
           </div>
           ${embedNotice()}
@@ -561,6 +567,34 @@ function setPlayer(url, source) {
   shell.querySelectorAll('[data-player-url]').forEach((button) => button.classList.toggle('active', button.dataset.playerUrl === url));
 }
 
+function exitTvMode(rewindHistory = false) {
+  const tvMode = state.tvMode;
+  if (!tvMode) return;
+  state.tvMode = null;
+  document.body.classList.remove('tv-mode');
+  tvMode.section.classList.remove('tv-mode-stage');
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  if (rewindHistory && history.state?.chefeflixTvMode) history.back();
+}
+
+async function enterTvMode(button) {
+  if (state.tvMode) return;
+  const section = button.closest('.watch-section');
+  if (!section?.querySelector('iframe')) return;
+  state.tvMode = { section, fullscreenActive: false };
+  document.body.classList.add('tv-mode');
+  section.classList.add('tv-mode-stage');
+  history.pushState({ ...history.state, chefeflixTvMode: true }, '', location.href);
+
+  if (typeof section.requestFullscreen !== 'function') return;
+  try {
+    await section.requestFullscreen();
+    if (state.tvMode?.section === section) state.tvMode.fullscreenActive = true;
+  } catch {
+    // The CSS layout remains active when fullscreen is blocked by the browser.
+  }
+}
+
 function currentRoute() {
   const raw = location.hash.slice(1) || '/';
   const [path, queryString = ''] = raw.split('?');
@@ -571,6 +605,7 @@ async function route() {
   const requestId = ++state.requestId;
   const { parts, params } = currentRoute();
   const [section, value] = parts;
+  exitTvMode(false);
   state.categoryObserver?.disconnect();
   state.categoryObserver = null;
   state.categoryFeed = null;
@@ -618,6 +653,12 @@ document.addEventListener('click', (event) => {
   const source = event.target.closest('[data-player-url]');
   if (source) setPlayer(source.dataset.playerUrl, source.dataset.source);
 
+  const tvEnter = event.target.closest('[data-tv-enter]');
+  if (tvEnter) enterTvMode(tvEnter);
+
+  const tvExit = event.target.closest('[data-tv-exit]');
+  if (tvExit) exitTvMode(true);
+
   const episode = event.target.closest('[data-episode]');
   if (episode && state.show && state.season) {
     const seasonNumber = state.season.season_number;
@@ -639,5 +680,14 @@ document.addEventListener('change', (event) => {
 });
 
 window.addEventListener('scroll', () => header.classList.toggle('scrolled', window.scrollY > 24), { passive: true });
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && state.tvMode) exitTvMode(true);
+});
+window.addEventListener('popstate', () => {
+  if (state.tvMode) exitTvMode(false);
+});
+document.addEventListener('fullscreenchange', () => {
+  if (state.tvMode?.fullscreenActive && !document.fullscreenElement) exitTvMode(true);
+});
 window.addEventListener('hashchange', route);
 route();

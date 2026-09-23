@@ -164,7 +164,57 @@ main { min-height: 100vh; }
 .source-buttons { display: flex; flex-wrap: wrap; gap: 7px; }
 .source-button { padding: 7px 11px; border: 1px solid rgba(168,179,199,.2); border-radius: 6px; color: var(--muted); background: transparent; font-size: 11px; }
 .source-button:hover, .source-button.active { color: var(--white); border-color: var(--violet); background: rgba(139,124,255,.12); }
+.tv-mode-button { color: var(--white); border-color: rgba(139,124,255,.62); }
+.tv-mode-exit, .tv-mode-tip { display: none; }
 .embed-note { margin-top: 14px; color: #788294; font-size: 11px; line-height: 1.6; }
+
+body.tv-mode { overflow: hidden; background: #000; }
+body.tv-mode .site-header, body.tv-mode .site-footer, body.tv-mode .detail-hero { display: none; }
+body.tv-mode main { min-height: 100vh; background: #000; }
+body.tv-mode .watch-section {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #000;
+}
+body.tv-mode .watch-section .section-title,
+body.tv-mode .watch-section .episode-panel,
+body.tv-mode .watch-section .embed-note,
+body.tv-mode .watch-section .player-bar { display: none; }
+body.tv-mode .episodes-layout,
+body.tv-mode .player-column { width: 100%; height: 100%; display: grid; place-items: center; }
+body.tv-mode .player-shell {
+  width: min(100vw, calc(100vh * 16 / 9));
+  width: min(100vw, calc(100dvh * 16 / 9));
+  max-width: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #000;
+}
+body.tv-mode .player-shell iframe { width: 100%; height: auto; max-height: 100vh; max-height: 100dvh; aspect-ratio: 16 / 9; }
+body.tv-mode .tv-mode-exit {
+  position: fixed;
+  z-index: 102;
+  display: block;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  padding: 10px 14px;
+  border: 1px solid rgba(255,255,255,.36);
+  border-radius: 7px;
+  color: var(--white);
+  background: rgba(8,10,15,.82);
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+}
 
 .episodes-layout { display: grid; grid-template-columns: minmax(220px, 330px) minmax(0, 1fr); gap: 22px; align-items: start; }
 .episode-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--coal); }
@@ -234,6 +284,26 @@ main { min-height: 100vh; }
   .about-grid { grid-template-columns: 1fr; }
   .site-footer { grid-template-columns: 1fr; text-align: center; justify-items: center; }
   .footer-meta { justify-self: center; text-align: center; }
+}
+
+@media (max-width: 900px), (max-height: 520px) and (pointer: coarse) {
+  body.tv-mode .tv-mode-tip {
+    position: fixed;
+    z-index: 101;
+    display: block;
+    left: 50%;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    width: max-content;
+    max-width: calc(100vw - 32px);
+    margin: 0;
+    padding: 8px 11px;
+    transform: translateX(-50%);
+    border-radius: 6px;
+    color: #d5d9e1;
+    background: rgba(8,10,15,.78);
+    font-size: 10px;
+    text-align: center;
+  }
 }
 
 @media (max-width: 480px) {
