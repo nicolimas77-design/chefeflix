@@ -1,11 +1,15 @@
 {
-  "cleanUrls": true,
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
-      ]
-    }
+  "version": 2,
+  "builds": [
+    { "src": "api/tmdb.js", "use": "@vercel/node" },
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "app.js", "use": "@vercel/static" },
+    { "src": "styles.css", "use": "@vercel/static" },
+    { "src": "favicon.svg", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/tmdb/(.*)", "dest": "/api/tmdb.js?path=$1" },
+    { "handle": "filesystem" },
+    { "src": "/", "dest": "/index.html" }
   ]
 }
