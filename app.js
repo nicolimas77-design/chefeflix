@@ -540,7 +540,7 @@ function detailHero(item, type) {
         ${detailMeta(item, type)}
         ${item.genres?.length ? `<div class="genre-list">${item.genres.map((genre) => `<span class="genre">${escapeHtml(genre.name)}</span>`).join('')}</div>` : ''}
         <p class="overview">${escapeHtml(item.overview || 'Sinopse indisponível em português.')}</p>
-        <div class="actions"><a class="button button-violet" href="#player">${icons.play} Assistir agora</a></div>
+        <div class="actions"><button class="button button-violet" type="button" data-scroll-player>${icons.play} Assistir agora</button></div>
       </div>
     </section>`;
 }
@@ -781,6 +781,9 @@ document.addEventListener('click', (event) => {
 
   const source = event.target.closest('[data-player-url]');
   if (source) setPlayer(source.dataset.playerUrl, source.dataset.source);
+
+  const scrollPlayer = event.target.closest('[data-scroll-player]');
+  if (scrollPlayer) document.querySelector('#player')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const tvEnter = event.target.closest('[data-tv-enter]');
   if (tvEnter) enterTvMode(tvEnter);
