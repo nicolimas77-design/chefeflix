@@ -119,10 +119,9 @@ main { min-height: 100vh; }
 .page-heading p { max-width: 580px; color: var(--muted); line-height: 1.6; }
 .result-count { flex: none; color: var(--muted); font-size: 12px; }
 .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 28px 16px; }
-.browse-more-wrap { min-height: 105px; display: grid; place-items: center; padding-top: 34px; }
-.browse-more { min-width: 150px; }
-.browse-more:disabled { cursor: wait; opacity: .64; transform: none; }
-.browse-end { color: var(--muted); font-size: 12px; }
+.home-catalog { padding: 15px clamp(20px, 5vw, 76px) 90px; }
+.home-catalog .rail-head { padding: 0; }
+.home-catalog .rail-head h2 { margin-top: 8px; font-size: clamp(28px, 4vw, 48px); }
 .category-intro { max-width: 720px; }
 .category-intro p { margin: 18px 0 0; color: var(--muted); line-height: 1.7; }
 .category-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }

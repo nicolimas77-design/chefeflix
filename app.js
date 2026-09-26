@@ -17,6 +17,9 @@ const state = {
   categoryFeed: null,
   categoryObserver: null,
   browseFeed: null,
+  browseObserver: null,
+  homeFeed: null,
+  homeObserver: null,
   tvMode: null,
 };
 
@@ -172,6 +175,14 @@ async function renderHome(requestId) {
   if (requestId !== state.requestId) return;
   const hero = trending.results.find((item) => item.backdrop_path && item.overview && ['movie', 'tv'].includes(item.media_type)) || trending.results[0];
   if (!hero) throw new Error('O catálogo está temporariamente vazio.');
+  const catalogItems = interleaveResults(popularMovies.results || [], popularShows.results || []);
+  state.homeFeed = {
+    requestId,
+    loading: false,
+    seen: new Set(catalogItems.map((item) => `${item.media_type}-${item.id}`)),
+    movie: { page: 1, totalPages: Math.min(Number(popularMovies.total_pages) || 1, 500) },
+    tv: { page: 1, totalPages: Math.min(Number(popularShows.total_pages) || 1, 500) },
+  };
   app.innerHTML = `
     ${heroMarkup(hero)}
     <div class="home-rails">
@@ -179,7 +190,17 @@ async function renderHome(requestId) {
       ${rail('Filmes populares', popularMovies.results, '#/browse/movie')}
       ${rail('Séries para maratonar', popularShows.results, '#/browse/tv')}
       ${rail('Mais bem avaliados', topMovies.results, '#/browse/movie')}
-    </div>`;
+    </div>
+    <section class="home-catalog">
+      <div class="rail-head"><div><div class="eyebrow">Continue explorando</div><h2>Todo o catálogo</h2></div></div>
+      <div class="media-grid" id="home-catalog-grid">${catalogItems.map((item) => mediaCard(item, true)).join('')}</div>
+      <div class="feed-sentinel" id="home-catalog-sentinel" aria-live="polite"><span>Role para descobrir mais títulos</span></div>
+    </section>`;
+  const sentinel = document.querySelector('#home-catalog-sentinel');
+  state.homeObserver = new IntersectionObserver((entries) => {
+    if (entries.some((entry) => entry.isIntersecting)) loadMoreHome();
+  }, { rootMargin: '160px 0px' });
+  state.homeObserver.observe(sentinel);
 }
 
 async function renderBrowse(kind, requestId) {
@@ -211,18 +232,23 @@ async function renderBrowse(kind, requestId) {
         <span class="result-count" id="browse-count">${isTrending ? `${items.length} títulos nesta seleção` : `${items.length} títulos exibidos`}</span>
       </div>
       <div class="media-grid" id="browse-grid">${items.map(mediaCard).join('')}</div>
-      ${isTrending ? '' : `<div class="browse-more-wrap" id="browse-more-wrap"><button class="button button-secondary browse-more" type="button" data-browse-more>Ver mais</button></div>`}
+      ${isTrending ? '' : '<div class="feed-sentinel" id="browse-sentinel" aria-live="polite"><span>Role para ver mais títulos</span></div>'}
     </section>`;
+  if (!isTrending) {
+    const sentinel = document.querySelector('#browse-sentinel');
+    state.browseObserver = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) loadMoreBrowse();
+    }, { rootMargin: '160px 0px' });
+    state.browseObserver.observe(sentinel);
+  }
 }
 
 async function loadMoreBrowse() {
   const feed = state.browseFeed;
   if (!feed || feed.loading || feed.requestId !== state.requestId || feed.page >= feed.totalPages) return;
-  const button = document.querySelector('[data-browse-more]');
-  if (!button) return;
   feed.loading = true;
-  button.disabled = true;
-  button.textContent = 'Carregando...';
+  const sentinel = document.querySelector('#browse-sentinel');
+  if (sentinel) sentinel.innerHTML = '<span class="feed-loader"></span><span>Carregando mais títulos...</span>';
   try {
     const data = await api(`/${feed.kind}/popular`, { page: feed.page + 1 });
     if (feed !== state.browseFeed || feed.requestId !== state.requestId) return;
@@ -237,18 +263,53 @@ async function loadMoreBrowse() {
     const count = document.querySelector('#browse-count');
     if (count) count.textContent = `${feed.seen.size} títulos exibidos`;
     if (feed.page >= feed.totalPages) {
-      document.querySelector('#browse-more-wrap').innerHTML = '<span class="browse-end">Todos os títulos disponibilizados pelo TMDB foram exibidos.</span>';
+      if (sentinel) sentinel.innerHTML = '<span>Todos os títulos disponibilizados pelo TMDB foram exibidos.</span>';
     } else {
-      button.disabled = false;
-      button.textContent = 'Ver mais';
+      if (sentinel) sentinel.innerHTML = '<span>Continue rolando para ver mais</span>';
     }
   } catch (error) {
     if (feed !== state.browseFeed) return;
-    button.disabled = false;
-    button.textContent = 'Tentar novamente';
-    button.title = error.message;
+    state.browseObserver?.disconnect();
+    if (sentinel) sentinel.innerHTML = `<span>${escapeHtml(error.message)}</span><button class="feed-retry" data-browse-retry>Tentar novamente</button>`;
   } finally {
     if (feed === state.browseFeed) feed.loading = false;
+  }
+}
+
+async function loadMoreHome() {
+  const feed = state.homeFeed;
+  if (!feed || feed.loading || feed.requestId !== state.requestId) return;
+  const movieDone = feed.movie.page >= feed.movie.totalPages;
+  const tvDone = feed.tv.page >= feed.tv.totalPages;
+  if (movieDone && tvDone) return;
+  feed.loading = true;
+  const sentinel = document.querySelector('#home-catalog-sentinel');
+  if (sentinel) sentinel.innerHTML = '<span class="feed-loader"></span><span>Carregando mais títulos...</span>';
+  try {
+    const [movies, shows] = await Promise.all([
+      movieDone ? Promise.resolve({ results: [], page: feed.movie.page, total_pages: feed.movie.totalPages }) : api('/movie/popular', { page: feed.movie.page + 1 }),
+      tvDone ? Promise.resolve({ results: [], page: feed.tv.page, total_pages: feed.tv.totalPages }) : api('/tv/popular', { page: feed.tv.page + 1 }),
+    ]);
+    if (feed !== state.homeFeed || feed.requestId !== state.requestId) return;
+    feed.movie.page = Number(movies.page) || feed.movie.page;
+    feed.tv.page = Number(shows.page) || feed.tv.page;
+    feed.movie.totalPages = Math.min(Number(movies.total_pages) || feed.movie.totalPages, 500);
+    feed.tv.totalPages = Math.min(Number(shows.total_pages) || feed.tv.totalPages, 500);
+    const fresh = interleaveResults(movies.results || [], shows.results || []).filter((item) => {
+      const key = `${item.media_type}-${item.id}`;
+      if (feed.seen.has(key)) return false;
+      feed.seen.add(key);
+      return true;
+    });
+    document.querySelector('#home-catalog-grid')?.insertAdjacentHTML('beforeend', fresh.map((item) => mediaCard(item, true)).join(''));
+    const finished = feed.movie.page >= feed.movie.totalPages && feed.tv.page >= feed.tv.totalPages;
+    if (sentinel) sentinel.innerHTML = finished ? '<span>Todo o catálogo disponibilizado pelo TMDB foi exibido.</span>' : '<span>Continue rolando para ver mais</span>';
+  } catch (error) {
+    if (feed !== state.homeFeed) return;
+    state.homeObserver?.disconnect();
+    if (sentinel) sentinel.innerHTML = `<span>${escapeHtml(error.message)}</span><button class="feed-retry" data-home-retry>Tentar novamente</button>`;
+  } finally {
+    if (feed === state.homeFeed) feed.loading = false;
   }
 }
 
@@ -659,7 +720,12 @@ async function route() {
   state.categoryObserver?.disconnect();
   state.categoryObserver = null;
   state.categoryFeed = null;
+  state.browseObserver?.disconnect();
+  state.browseObserver = null;
   state.browseFeed = null;
+  state.homeObserver?.disconnect();
+  state.homeObserver = null;
+  state.homeFeed = null;
   state.show = null;
   state.season = null;
   header.classList.remove('menu-open');
@@ -701,8 +767,17 @@ document.addEventListener('click', (event) => {
   const feedRetry = event.target.closest('[data-feed-retry]');
   if (feedRetry) loadCategoryPage();
 
-  const browseMore = event.target.closest('[data-browse-more]');
-  if (browseMore) loadMoreBrowse();
+  const browseRetry = event.target.closest('[data-browse-retry]');
+  if (browseRetry) {
+    state.browseObserver?.observe(document.querySelector('#browse-sentinel'));
+    loadMoreBrowse();
+  }
+
+  const homeRetry = event.target.closest('[data-home-retry]');
+  if (homeRetry) {
+    state.homeObserver?.observe(document.querySelector('#home-catalog-sentinel'));
+    loadMoreHome();
+  }
 
   const source = event.target.closest('[data-player-url]');
   if (source) setPlayer(source.dataset.playerUrl, source.dataset.source);
