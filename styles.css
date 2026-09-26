@@ -309,6 +309,11 @@ body.tv-mode .tv-mode-exit {
   }
 }
 
+@media (orientation: landscape) and (max-width: 1024px) and (pointer: coarse) {
+  :root { --header-height: 0px; }
+  .site-header { display: none; }
+}
+
 @media (max-width: 480px) {
   .hero h1 { font-size: 43px; }
   .hero-copy { -webkit-line-clamp: 4; }
